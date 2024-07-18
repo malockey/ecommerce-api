@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user
+from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
@@ -17,12 +17,19 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), nullable=False, unique=True)
     password = db.Column(db.String(100), nullable=False)
+    cart = db.relationship('Cart', backref='user', lazy=True)
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     price = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text, nullable=True)
+    
+class Cart(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    quantity = db.Column(db.Integer, nullable=False)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -44,6 +51,8 @@ def login():
 def logout():
     logout_user()
     return jsonify({'message': 'Logout successful!'}), 200
+
+# products
 
 @app.route('/api/products/add', methods=['POST'])
 @login_required
@@ -112,10 +121,21 @@ def get_products():
             'price': product.price,
         })
     return jsonify(response), 200
-    
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
+
+# cart
+
+@app.route('/api/cart/add/<int:product_id>', methods=['POST'])
+@login_required
+def add_to_cart(product_id):
+    user = User.query.get(int(current_user.id))
+    product = Product.query.get(product_id)
+
+    if user and product:
+        cart = Cart(user_id=user.id, product_id=product.id, quantity=1)
+        db.session.add(cart)
+        db.session.commit()
+        return jsonify({'message': 'Product added to cart!'}), 200
+    return jsonify({'message': 'Failed to add item to the cart'}), 400
 
 if __name__ == '__main__':
     app.run(debug=True)

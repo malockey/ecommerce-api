@@ -137,5 +137,18 @@ def add_to_cart(product_id):
         return jsonify({'message': 'Product added to cart!'}), 200
     return jsonify({'message': 'Failed to add item to the cart'}), 400
 
+@app.route('/api/cart/remove/<int:product_id>', methods=['DELETE'])
+@login_required
+def remove_from_cart(product_id):
+    cart = Cart.query.filter_by(user_id=current_user.id, product_id=product_id).first()
+    
+    if cart:
+        db.session.delete(cart)
+        db.session.commit()
+        return jsonify({'message': 'Product removed from cart!'}), 200
+    return jsonify({'message': 'Failed to remove product'}), 400
+
+
+
 if __name__ == '__main__':
     app.run(debug=True)

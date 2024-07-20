@@ -29,7 +29,6 @@ class Cart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
-    quantity = db.Column(db.Integer, nullable=False)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -131,7 +130,7 @@ def add_to_cart(product_id):
     product = Product.query.get(product_id)
 
     if user and product:
-        cart = Cart(user_id=user.id, product_id=product.id, quantity=1)
+        cart = Cart(user_id=user.id, product_id=product.id)
         db.session.add(cart)
         db.session.commit()
         return jsonify({'message': 'Product added to cart!'}), 200
@@ -148,7 +147,23 @@ def remove_from_cart(product_id):
         return jsonify({'message': 'Product removed from cart!'}), 200
     return jsonify({'message': 'Failed to remove product'}), 400
 
-
+@app.route('/api/cart', methods=['GET'])
+@login_required
+def get_cart():
+    user = User.query.get(int(current_user.id))
+    cart = user.cart
+    response = []
+    for item in cart:
+        product = Product.query.get(item.product_id)
+        response.append({
+            'id': product.id,
+            'user_id': user.id,
+            'product_id': product.id,
+            'product_name': product.name,
+            'product_price': product.price,
+        })
+    return jsonify(response), 200
+        
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -13,6 +13,7 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 CORS(app)
 
+# models
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), nullable=False, unique=True)
@@ -33,6 +34,8 @@ class Cart(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# user
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -164,6 +167,32 @@ def get_cart():
         })
     return jsonify(response), 200
         
+@app.route('/api/cart/checkout', methods=['POST'])
+@login_required
+def checkout():
+    user = User.query.get(int(current_user.id))
+    cart = user.cart
+    total = 0
+    
+    if not cart:
+        return jsonify({'message': 'Cart is empty!'}), 400
+
+    items_to_remove = []
+    for item in cart:
+        product = Product.query.get(item.product_id)
+        total += product.price
+        items_to_remove.append(item)
+    
+    if total == 0:
+        return jsonify({'message': 'Cart is empty!'}), 400
+
+    for item in items_to_remove:
+        db.session.delete(item)
+    
+    db.session.commit()
+    
+    return jsonify({'message': f'Checkout successful! Total: {total}'}), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True)
